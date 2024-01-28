@@ -10,3 +10,5 @@ add_executable(inhibit-screensaver main.cpp)
 target_link_libraries(inhibit-screensaver PRIVATE SDBusCpp::sdbus-c++)
 
 install(TARGETS inhibit-screensaver)
+install(FILES inhibit-screensaver.desktop DESTINATION ${CMAKE_INSTALL_PREFIX}/share/applications)
+install(FILES inhibit-screensaver.svg DESTINATION ${CMAKE_INSTALL_PREFIX}/share/icons/hicolor/scalable/apps)
