@@ -6,6 +6,37 @@
 
 const char *inhibit_reason = "A game is running";
 
+void inhibit_via_apis(sdbus::IConnection &dbusConnection, const char *application)
+{
+    std::unique_ptr<sdbus::IProxy> screensaverProxy = sdbus::createProxy(
+        dbusConnection,
+        "org.freedesktop.ScreenSaver",
+        "/org/freedesktop/ScreenSaver"
+    );
+
+    std::unique_ptr<sdbus::IProxy> powerManagementProxy = sdbus::createProxy(
+        dbusConnection,
+        "org.freedesktop.PowerManagement.Inhibit",
+        "/org/freedesktop/PowerManagement/Inhibit"
+    );
+
+    try {
+        screensaverProxy->callMethod("Inhibit")
+            .onInterface("org.freedesktop.ScreenSaver")
+            .withArguments(inhibit_reason, application);
+    } catch (const sdbus::Error &e) {
+        std::cerr << "Failed to inhibit screensaver: " << e.getName() << " with message: " << e.getMessage() << std::endl;
+    }
+
+    try {
+        powerManagementProxy->callMethod("Inhibit")
+            .onInterface("org.freedesktop.PowerManagement.Inhibit")
+            .withArguments(inhibit_reason, application);
+    } catch (const sdbus::Error &e) {
+        std::cerr << "Failed to inhibit power saving: " << e.getName() << " with message: " << e.getMessage() << std::endl;
+    }
+}
+
 int main(int argc, char *argv[])
 {
     // Bail if no command is given.
@@ -14,33 +45,7 @@ int main(int argc, char *argv[])
 
     const std::unique_ptr<sdbus::IConnection> sessionBusConnection = sdbus::createSessionBusConnection();
 
-    std::unique_ptr<sdbus::IProxy> screensaverProxy = sdbus::createProxy(
-        *sessionBusConnection,
-        "org.freedesktop.ScreenSaver",
-        "/org/freedesktop/ScreenSaver"
-    );
-
-    std::unique_ptr<sdbus::IProxy> powerManagementProxy = sdbus::createProxy(
-        *sessionBusConnection,
-        "org.freedesktop.PowerManagement.Inhibit",
-        "/org/freedesktop/PowerManagement/Inhibit"
-    );
-
-    try {
-        screensaverProxy->callMethod("Inhibit")
-            .onInterface("org.freedesktop.ScreenSaver")
-            .withArguments(inhibit_reason, argv[1]);
-    } catch (const sdbus::Error &e) {
-        std::cerr<<"Failed to inhibit screensaver: " << e.getName() << " with message: " << e.getMessage() << std::endl;
-    }
-
-    try {
-        powerManagementProxy->callMethod("Inhibit")
-            .onInterface("org.freedesktop.PowerManagement.Inhibit")
-            .withArguments(inhibit_reason, argv[1]);
-    } catch (const sdbus::Error &e) {
-        std::cerr<<"Failed to inhibit power saving: " << e.getName() << " with message: " << e.getMessage() << std::endl;
-    }
+    inhibit_via_apis(*sessionBusConnection, argv[1]);
 
     // Convert from argc/argv into: An list of arguments for execution and a space-joined string for output.
     std::string subprocess_str;
