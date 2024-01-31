@@ -6,6 +6,29 @@
 
 const char *inhibit_reason = "A game is running";
 
+bool inhibit_via_inhibit_portal(sdbus::IConnection &dbusConnection)
+{
+    std::unique_ptr<sdbus::IProxy> desktopPortalProxy = sdbus::createProxy(
+        dbusConnection,
+        "org.freedesktop.portal.Desktop",
+        "/org/freedesktop/portal/desktop"
+    );
+
+    try {
+        desktopPortalProxy->callMethod("Inhibit")
+            .onInterface("org.freedesktop.portal.Inhibit")
+            .withArguments("",  // Window id, if empty default to "parent_window".
+                           8u,  // Supported flags: 1: Logout, 2: User Switch, 4: Suspend, 8: Idle
+                           std::map<std::string, sdbus::Variant>{
+                               {"reason", sdbus::Variant{inhibit_reason}},
+                           });
+        return true;
+    } catch (const sdbus::Error &e) {
+        std::cerr << "Failed to inhibit idle via Freedesktop.org inhibit portal: " << e.getName() << " with message: " << e.getMessage() << std::endl;
+        return false;
+    }
+}
+
 void inhibit_via_apis(sdbus::IConnection &dbusConnection, const char *application)
 {
     std::unique_ptr<sdbus::IProxy> screensaverProxy = sdbus::createProxy(
@@ -45,7 +68,10 @@ int main(int argc, char *argv[])
 
     const std::unique_ptr<sdbus::IConnection> sessionBusConnection = sdbus::createSessionBusConnection();
 
-    inhibit_via_apis(*sessionBusConnection, argv[1]);
+    if (!inhibit_via_inhibit_portal(*sessionBusConnection)) {
+        std::cerr << "Trying to inhibit via Freedesktop.org ScreenSaver and PowerManagement APIs." << std::endl;
+        inhibit_via_apis(*sessionBusConnection, argv[1]);
+    }
 
     // Convert from argc/argv into: An list of arguments for execution and a space-joined string for output.
     std::string subprocess_str;
