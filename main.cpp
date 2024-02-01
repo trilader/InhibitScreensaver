@@ -1,12 +1,21 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
+#include <cstdlib>
 #include <iostream>
 #include <sdbus-c++/sdbus-c++.h>
 #include "subprocess.h"
 
+bool verbose_output = false;
 const char *inhibit_reason = "A game is running";
 
-bool inhibit_via_inhibit_portal(sdbus::IConnection &dbusConnection)
+void debug(const std::string &s)
+{
+    if (!verbose_output)
+        return;
+    std::cerr << s;
+}
+
+void inhibit_via_inhibit_portal(sdbus::IConnection &dbusConnection)
 {
     std::unique_ptr<sdbus::IProxy> desktopPortalProxy = sdbus::createProxy(
         dbusConnection,
@@ -15,6 +24,7 @@ bool inhibit_via_inhibit_portal(sdbus::IConnection &dbusConnection)
     );
 
     try {
+        debug("Trying to inhibit idle via org.freedesktop.portal.Inhibit interface: ");
         desktopPortalProxy->callMethod("Inhibit")
             .onInterface("org.freedesktop.portal.Inhibit")
             .withArguments("",  // Window id, if empty default to "parent_window".
@@ -22,10 +32,10 @@ bool inhibit_via_inhibit_portal(sdbus::IConnection &dbusConnection)
                            std::map<std::string, sdbus::Variant>{
                                {"reason", sdbus::Variant{inhibit_reason}},
                            });
-        return true;
+        debug("Ok.\n");
     } catch (const sdbus::Error &e) {
+        debug("Failed.\n");
         std::cerr << "Failed to inhibit idle via Freedesktop.org inhibit portal: " << e.getName() << " with message: " << e.getMessage() << std::endl;
-        return false;
     }
 }
 
@@ -37,6 +47,17 @@ void inhibit_via_apis(sdbus::IConnection &dbusConnection, const char *applicatio
         "/org/freedesktop/ScreenSaver"
     );
 
+    try {
+        debug("Trying to inhibit screensaver via org.freedesktop.ScreenSaver interface: ");
+        screensaverProxy->callMethod("Inhibit")
+            .onInterface("org.freedesktop.ScreenSaver")
+            .withArguments(inhibit_reason, application);
+        debug("Ok.\n");
+    } catch (const sdbus::Error &e) {
+        debug("Failed.\n");
+        std::cerr << "Failed to inhibit screensaver: " << e.getName() << " with message: " << e.getMessage() << std::endl;
+    }
+
     std::unique_ptr<sdbus::IProxy> powerManagementProxy = sdbus::createProxy(
         dbusConnection,
         "org.freedesktop.PowerManagement.Inhibit",
@@ -44,18 +65,13 @@ void inhibit_via_apis(sdbus::IConnection &dbusConnection, const char *applicatio
     );
 
     try {
-        screensaverProxy->callMethod("Inhibit")
-            .onInterface("org.freedesktop.ScreenSaver")
-            .withArguments(inhibit_reason, application);
-    } catch (const sdbus::Error &e) {
-        std::cerr << "Failed to inhibit screensaver: " << e.getName() << " with message: " << e.getMessage() << std::endl;
-    }
-
-    try {
+        debug("Trying to inhibit power management via org.freedesktop.PowerManagement.Inhibit interface: ");
         powerManagementProxy->callMethod("Inhibit")
             .onInterface("org.freedesktop.PowerManagement.Inhibit")
             .withArguments(inhibit_reason, application);
+        debug("Ok.\n");
     } catch (const sdbus::Error &e) {
+        debug("Failed.\n");
         std::cerr << "Failed to inhibit power saving: " << e.getName() << " with message: " << e.getMessage() << std::endl;
     }
 }
@@ -66,12 +82,14 @@ int main(int argc, char *argv[])
     if (argc < 2)
         return 0;
 
+    const char *inhibit_debug = std::getenv("INHIBIT_DEBUG");
+    if (inhibit_debug != nullptr && strlen(inhibit_debug) != 0)
+        verbose_output = true;
+
     const std::unique_ptr<sdbus::IConnection> sessionBusConnection = sdbus::createSessionBusConnection();
 
-    if (!inhibit_via_inhibit_portal(*sessionBusConnection)) {
-        std::cerr << "Trying to inhibit via Freedesktop.org ScreenSaver and PowerManagement APIs." << std::endl;
-        inhibit_via_apis(*sessionBusConnection, argv[1]);
-    }
+    inhibit_via_inhibit_portal(*sessionBusConnection);
+    inhibit_via_apis(*sessionBusConnection, argv[1]);
 
     // Convert from argc/argv into: An list of arguments for execution and a space-joined string for output.
     std::string subprocess_str;
@@ -83,27 +101,32 @@ int main(int argc, char *argv[])
     }
     subprocess_str.pop_back(); // Remove ' ' added by the append after the last entry.
 
+    debug("Starting process '" + subprocess_str + "': ");
     subprocess_s subprocess;
     // Create a subprocess with the same environment we're running with.
     int res = subprocess_create(args.data(),
                                 subprocess_option_inherit_environment,
                                 &subprocess);
     if (res != 0) {
-        std::cerr << "Failed to spawn '" << subprocess_str << "'. res=" << res << std::endl;
-        // Abort if we can't spawn the process.
+        debug("Failed.\n");
+        std::cerr << "Failed to start '" << subprocess_str << "'. res=" << res << std::endl;
+        // Abort if we can't start the process.
         return 1;
     }
+    debug("Ok.\n");
 
     // Wait till the process is done.
     int rc = 0;
     res = subprocess_join(&subprocess, &rc);
     if (res != 0) {
-        std::cerr << "Failed to join '" << subprocess_str << "'. res=" << res << std::endl;
+        std::cerr << "Failed to join '" << subprocess_str << "'. res=" << res << "." << std::endl;
     }
 
     // Print a message if the subprocess didn't exit cleanly.
     if (rc != 0)
         std::cerr << "Process '" << subprocess_str << "' exited with code " << rc << "." << std::endl;
+    else
+        debug("Process '" + subprocess_str + "' exited with code " + std::to_string(rc) + ".\n");
 
     // Forward subprocess exit code.
     return rc;
