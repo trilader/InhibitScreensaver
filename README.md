@@ -29,5 +29,6 @@ If you just want to use this tool as-is on your machine you'll need:
 This is a normal CMake based application, so you can build it as usual.
 
 ## As an extension to the Steam Flatpak package:
-I'm trying to get this submitted onto flathub so that you can just install it and use it within the Steam package.
-I'll update this once that happens and put instructions here.
+This utility is available on Flathub with the id `com.valvesoftware.Steam.Utility.InhibitScreensaver`.
+
+You can install it as an extension to the Steam package either by running `flatpak install flathub com.valvesoftware.Steam.Utility.InhibitScreensaver` in your favorite terminal application or through a GUI if it supports installing extension packages.
