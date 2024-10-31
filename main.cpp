@@ -15,12 +15,24 @@ void debug(const std::string &s)
     std::cerr << s;
 }
 
+#if defined(SDBUSCPP_15)
+    #define SNAME(x) x
+    #define OPATH(x) x
+#elif defined(SDBUSCPP_20)
+    #define SNAME(x) sdbus::ServiceName{x}
+    #define OPATH(x) sdbus::ObjectPath{x}
+#else
+    #define SNAME(x) x
+    #define OPATH(x) x
+    #error "Unknown SDBusC++ version define?"
+#endif
+
 void inhibit_via_inhibit_portal(sdbus::IConnection &dbusConnection)
 {
     std::unique_ptr<sdbus::IProxy> desktopPortalProxy = sdbus::createProxy(
         dbusConnection,
-        "org.freedesktop.portal.Desktop",
-        "/org/freedesktop/portal/desktop"
+        SNAME("org.freedesktop.portal.Desktop"),
+        OPATH("/org/freedesktop/portal/desktop")
     );
 
     try {
@@ -43,8 +55,8 @@ void inhibit_via_apis(sdbus::IConnection &dbusConnection, const char *applicatio
 {
     std::unique_ptr<sdbus::IProxy> screensaverProxy = sdbus::createProxy(
         dbusConnection,
-        "org.freedesktop.ScreenSaver",
-        "/org/freedesktop/ScreenSaver"
+        SNAME("org.freedesktop.ScreenSaver"),
+        OPATH("/org/freedesktop/ScreenSaver")
     );
 
     try {
@@ -60,8 +72,8 @@ void inhibit_via_apis(sdbus::IConnection &dbusConnection, const char *applicatio
 
     std::unique_ptr<sdbus::IProxy> powerManagementProxy = sdbus::createProxy(
         dbusConnection,
-        "org.freedesktop.PowerManagement.Inhibit",
-        "/org/freedesktop/PowerManagement/Inhibit"
+        SNAME("org.freedesktop.PowerManagement.Inhibit"),
+        OPATH("/org/freedesktop/PowerManagement/Inhibit")
     );
 
     try {
