@@ -28,6 +28,11 @@ If you just want to use this tool as-is on your machine you'll need:
 
 This is a normal CMake based application, so you can build it as usual.
 
+### A note for non Steam Flatpak users:
+
+If you're using this inside Flatpak but outside the Steam Flatpak package (e.g., inside bottles) you'll need to ensure that access to the session DBus connection as well as "talk" permissions on `org.freedesktop.PowerManagement` and `org.freedesktop.ScreenSaver` is allowed.
+Otherwise the package won't work (and most likely crash). You can grant such access using e.g. Flatseal or the "Flatpak Permissions" from KDE.
+
 ## As an extension to the Steam Flatpak package:
 This utility is available on Flathub with the id `com.valvesoftware.Steam.Utility.InhibitScreensaver`.
 
