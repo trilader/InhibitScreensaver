@@ -24,7 +24,7 @@ If you just want to use this tool as-is on your machine you'll need:
 
 - A normal C/C++ build environment (compiler, linker, etc)
 - CMake
-- sdbus-cpp (I've tested this with version 1.4.0, which you can find [here](https://github.com/Kistler-Group/sdbus-cpp) or likely in your Linux distribution packages)
+- sdbus-cpp (I've tested this with version 1.5.0 and 2.0.0, which you can find [here](https://github.com/Kistler-Group/sdbus-cpp) or likely in your Linux distribution packages)
 
 This is a normal CMake based application, so you can build it as usual.
 
